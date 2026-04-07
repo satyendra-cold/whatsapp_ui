@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { sendWhatsAppTemplate, resolveTemplateFinalText } from '@/lib/whatsapp';
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    const body = await request.json();
+    const { to, templateName, languageCode, components, exactText, conversationId, userId } = body;
+
+    // Get current authenticated user (if called from browser)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Support backend-to-backend API calls by passing userId in JSON body
+    const activeUserId = user?.id || userId;
+
+    if (!activeUserId) {
+      return NextResponse.json({ error: 'Unauthorized. Provide session cookie or "userId" in JSON body.' }, { status: 401 });
+    }
+
+    if (!to || !templateName) {
+      return NextResponse.json(
+        { error: 'Missing "to" or "templateName" field' },
+        { status: 400 }
+      );
+    }
+
+    const { data: config } = await supabase
+      .from('whatsapp_configs')
+      .select('access_token, phone_number_id, waba_id')
+      .eq('user_id', activeUserId)
+      .single();
+
+    if (!config) {
+      return NextResponse.json(
+        { error: 'WhatsApp credentials are not configured.' },
+        { status: 400 }
+      );
+    }
+
+    const accessToken = config.access_token;
+    const phoneNumberId = config.phone_number_id;
+    const wabaId = config.waba_id;
+
+    // Send via Meta API
+    const { messageId: waMessageId } = await sendWhatsAppTemplate({
+      to,
+      templateName,
+      languageCode: languageCode || 'en',
+      components: components || [],
+      accessToken,
+      phoneNumberId,
+    });
+
+    console.log('📤 Template sent, waMessageId:', waMessageId);
+
+    // Resolve the actual final text the user received
+    // Priority: 1) exactText provided by caller, 2) auto-resolve from Meta template + params
+    let finalContent = exactText;
+    if (!finalContent && wabaId) {
+      console.log('📋 Auto-resolving template text from Meta API...');
+      finalContent = await resolveTemplateFinalText({
+        wabaId,
+        accessToken,
+        templateName,
+        languageCode: languageCode || 'en',
+        components: components || [],
+      });
+      console.log(`📋 Resolved: "${finalContent?.substring(0, 100)}..."`);
+    }
+    if (!finalContent) {
+      finalContent = `[Template: ${templateName}]`;
+    }
+
+    let currentConversationId = conversationId;
+
+    // If conversationId is not provided (e.g. sending template to a new user), create/get it
+    if (!currentConversationId) {
+       // 1. Upsert contact
+       const { data: contact, error: contactError } = await (supabase as any)
+         .from('contacts')
+         .upsert(
+           { user_id: activeUserId, phone_number: to },
+           { onConflict: 'user_id,phone_number' }
+         )
+         .select('id')
+         .single();
+         
+       if (contact) {
+         // 2. Upsert conversation
+         const { data: conversation, error: convError } = await (supabase as any)
+           .from('conversations')
+           .upsert(
+             {
+               user_id: activeUserId,
+               contact_id: contact.id,
+               last_message: finalContent,
+               last_message_at: new Date().toISOString(),
+             },
+             { onConflict: 'user_id,contact_id' }
+           )
+           .select('id')
+           .single();
+           
+         if (conversation) {
+           currentConversationId = conversation.id;
+         }
+       }
+    }
+
+    // Save outbound message to Supabase
+    // Use UPSERT on wa_message_id to handle race condition with Webhook incoming statuses
+    const { data: savedMsg, error: msgError } = await supabase
+      .from('messages')
+      .upsert({
+        user_id: activeUserId,
+        conversation_id: currentConversationId,
+        wa_message_id: waMessageId,
+        direction: 'outbound',
+        content: finalContent,
+        message_type: 'template',
+      }, { onConflict: 'wa_message_id' })
+      .select('id')
+      .single();
+
+    if (msgError) {
+      console.error('Failed to save template message:', msgError);
+    }
+
+    // Update conversation if we had an existing one
+    if (conversationId) {
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: finalContent,
+          last_message_at: new Date().toISOString(),
+        })
+        .eq('id', conversationId)
+        .eq('user_id', activeUserId);
+    }
+
+    return NextResponse.json({
+      success: true,
+      messageId: savedMsg?.id,
+      waMessageId,
+      resolvedText: finalContent,
+    });
+  } catch (err: any) {
+    console.error('Send template error:', err);
+    return NextResponse.json(
+      { error: err?.response?.data?.error?.message || err.message || 'Failed to send template' },
+      { status: 500 }
+    );
+  }
+}

@@ -4,7 +4,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useDashStore } from '@/lib/store';
 import type { DashMessage } from '@/lib/store';
 import { formatTime, formatFullDateTime, getInitials, generateAvatarColor } from '@/lib/utils';
-import { Send, ArrowDown, Info, Clock, Check, CheckCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, ArrowDown, Info, Clock, Check, CheckCheck, AlertCircle, Loader2, FileText } from 'lucide-react';
+import TemplateSender from './TemplateSender';
 
 export default function DashChatWindow() {
   const {
@@ -19,6 +20,7 @@ export default function DashChatWindow() {
   const [sending, setSending] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [statusTooltip, setStatusTooltip] = useState<string | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -77,6 +79,36 @@ export default function DashChatWindow() {
 
   // Group messages by date
   const groupedMessages = groupByDate(messages);
+
+  // Send template function
+  const handleSendTemplate = async (
+    templateName: string,
+    languageCode: string,
+    components: any[],
+    resolvedText: string
+  ) => {
+    if (!contactPhone || !activeConversationId) return;
+    try {
+      const res = await fetch('/api/send-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: contactPhone,
+          templateName,
+          languageCode,
+          components,
+          conversationId: activeConversationId,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to send template');
+      }
+    } catch (err) {
+      console.error('Send template failed:', err);
+      throw err;
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -158,8 +190,28 @@ export default function DashChatWindow() {
         )}
       </div>
 
+      {/* Template Sender Popup */}
+      {showTemplatePicker && (
+        <TemplateSender
+          onSend={handleSendTemplate}
+          onClose={() => setShowTemplatePicker(false)}
+        />
+      )}
+
       {/* Input */}
-      <div className="bg-[#202c33] px-4 py-3 flex items-end gap-3 shrink-0 border-t border-[#2a3942]/30">
+      <div className="bg-[#202c33] px-4 py-3 flex items-end gap-3 shrink-0 border-t border-[#2a3942]/30 relative">
+        <button
+          onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+          title="Send Template"
+          className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-95 ${
+            showTemplatePicker
+              ? 'bg-[#00a884] text-[#111b21]'
+              : 'bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] hover:bg-[#3b4a54]'
+          }`}
+        >
+          <FileText size={18} />
+        </button>
+
         <div className="flex-1 bg-[#2a3942] rounded-lg px-4 py-2.5 flex items-end">
           <textarea
             value={inputText}

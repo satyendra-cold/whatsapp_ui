@@ -16,9 +16,6 @@ export default function DashboardPage() {
   const {
     activeConversationId,
     fetchConversations,
-    handleMessageInsert,
-    handleMessageUpdate,
-    handleConversationUpdate,
   } = useDashStore();
 
   // Fetch conversations on mount
@@ -28,35 +25,44 @@ export default function DashboardPage() {
 
   // Setup Supabase realtime subscriptions
   useEffect(() => {
-    const channel = supabase
+    console.log('🔌 Setting up Supabase Realtime channel...');
+    const sb = createClient();
+    const channel = sb
       .channel('dashboard-realtime')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          handleMessageInsert(payload.new as any);
+        (payload: { new: Record<string, unknown> }) => {
+          console.log('📩 Realtime INSERT (messages):', payload.new);
+          useDashStore.getState().handleMessageInsert(payload.new as any);
         }
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => {
-          handleMessageUpdate(payload.new as any);
+        (payload: { new: Record<string, unknown> }) => {
+          console.log('🔄 Realtime UPDATE (messages):', payload.new);
+          useDashStore.getState().handleMessageUpdate(payload.new as any);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
-        (payload) => {
-          handleConversationUpdate(payload.new as any);
+        (payload: { eventType: string; new: Record<string, unknown> }) => {
+          console.log('💬 Realtime EVENT (conversations):', payload.eventType, payload.new);
+          useDashStore.getState().handleConversationUpdate(payload.new as any);
         }
       )
-      .subscribe();
+      .subscribe((status: string) => {
+        console.log('📡 Realtime subscription status:', status);
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      console.log('🔌 Removing Supabase Realtime channel');
+      sb.removeChannel(channel);
     };
-  }, [supabase, handleMessageInsert, handleMessageUpdate, handleConversationUpdate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

@@ -162,37 +162,54 @@ export const useDashStore = create<DashStore>((set, get) => ({
 
   // Realtime: new message inserted
   handleMessageInsert: (msg) => {
-    const { activeConversationId } = get();
+    console.log('📬 store.handleMessageInsert:', msg);
+    const { activeConversationId, conversations } = get();
+    
+    // If conversation is in the list, update its state
+    const convExists = conversations.some(c => c.id === msg.conversation_id);
+    
     if (msg.conversation_id === activeConversationId) {
-      set((state) => ({
-        messages: [...state.messages, msg],
-      }));
+      set((state) => {
+        if (state.messages.some((m) => m.id === msg.id)) {
+          return state;
+        }
+        return {
+          messages: [...state.messages, msg],
+        };
+      });
     }
 
-    // Update conversation list
-    set((state) => ({
-      conversations: state.conversations.map((c) =>
-        c.id === msg.conversation_id
-          ? {
-              ...c,
-              last_message: msg.content,
-              last_message_at: msg.created_at,
-              unread_count:
-                msg.direction === 'inbound' && c.id !== activeConversationId
-                  ? (c.unread_count || 0) + 1
-                  : c.unread_count,
-            }
-          : c
-      ).sort((a, b) => {
-        const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-        const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-        return bTime - aTime;
-      }),
-    }));
+    if (convExists) {
+      // Update conversation list
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c.id === msg.conversation_id
+            ? {
+                ...c,
+                last_message: msg.content,
+                last_message_at: msg.created_at,
+                unread_count:
+                  msg.direction === 'inbound' && c.id !== activeConversationId
+                    ? (c.unread_count || 0) + 1
+                    : c.unread_count,
+              }
+            : c
+        ).sort((a, b) => {
+          const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+          const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+          return bTime - aTime;
+        }),
+      }));
+    } else {
+      // If conversation doesn't exist yet, refetch all to catch it
+      console.log('🔄 New conversation detected via message, refetching...');
+      get().fetchConversations();
+    }
   },
 
   // Realtime: message status updated
   handleMessageUpdate: (msg) => {
+    console.log('📬 store.handleMessageUpdate:', msg);
     const { activeConversationId } = get();
     if (msg.conversation_id === activeConversationId) {
       set((state) => ({
@@ -205,6 +222,7 @@ export const useDashStore = create<DashStore>((set, get) => ({
 
   // Realtime: conversation changed
   handleConversationUpdate: (conv) => {
+    console.log('📬 store.handleConversationUpdate:', conv);
     set((state) => {
       const exists = state.conversations.find((c) => c.id === conv.id);
       if (exists) {
@@ -219,7 +237,8 @@ export const useDashStore = create<DashStore>((set, get) => ({
         };
       }
       // New conversation — refetch to get the contact join
-      get().fetchConversations();
+      console.log('🔄 New conversation detected, refetching to get contact info...');
+      setTimeout(() => get().fetchConversations(), 100);
       return state;
     });
   },
