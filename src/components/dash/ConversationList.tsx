@@ -3,8 +3,9 @@
 import React from 'react';
 import { useDashStore } from '@/lib/store';
 import type { Conversation } from '@/lib/store';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Settings, LogOut } from 'lucide-react';
 import { formatRelativeTime, getInitials, generateAvatarColor, truncate } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function DashConversationList() {
   const {
@@ -30,9 +31,25 @@ export default function DashConversationList() {
       {/* Header */}
       <div className="h-[60px] px-4 flex items-center justify-between shrink-0 border-b border-[#2a3942]/30">
         <h2 className="text-[20px] font-semibold text-[#e9edef]">Chats</h2>
-        <button className="p-2 rounded-lg text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors">
-          <Filter size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/settings" className="md:hidden p-2 rounded-lg text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors">
+            <Settings size={18} />
+          </Link>
+          <button 
+            onClick={async () => {
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              window.location.href = '/login';
+            }}
+            className="md:hidden p-2 rounded-lg text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
+          >
+            <LogOut size={18} />
+          </button>
+          <button className="p-2 rounded-lg text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors">
+            <Filter size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Search */}

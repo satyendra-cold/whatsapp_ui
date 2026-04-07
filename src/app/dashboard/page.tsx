@@ -72,7 +72,7 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#111b21]">
       {/* Left Nav Rail */}
-      <div className="w-[68px] bg-[#202c33] flex flex-col items-center py-4 shrink-0 border-r border-[#2a3942]/50">
+      <div className="hidden md:flex w-[68px] bg-[#202c33] flex-col items-center py-4 shrink-0 border-r border-[#2a3942]/50">
         <div className="w-10 h-10 bg-[#00a884] rounded-xl flex items-center justify-center mb-8 shadow-lg shadow-[#00a884]/20">
           <MessageCircle size={20} className="text-white" />
         </div>
@@ -92,12 +92,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Conversation List Panel */}
-      <div className="w-[380px] h-full border-r border-[#2a3942]/50 flex flex-col shrink-0">
+      <div className={`${activeConversationId ? 'hidden md:flex' : 'flex'} w-full md:w-[380px] h-full border-r border-[#2a3942]/50 flex-col shrink-0`}>
         <DashConversationList />
       </div>
 
       {/* Chat Window */}
-      <div className="flex-1 h-full flex flex-col min-w-0">
+      <div className={`${activeConversationId ? 'flex' : 'hidden md:flex'} flex-1 h-full flex-col min-w-0`}>
         {activeConversationId ? (
           <DashChatWindow />
         ) : (

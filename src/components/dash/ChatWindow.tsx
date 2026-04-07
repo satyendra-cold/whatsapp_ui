@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useDashStore } from '@/lib/store';
 import type { DashMessage } from '@/lib/store';
 import { formatTime, formatFullDateTime, getInitials, generateAvatarColor } from '@/lib/utils';
-import { Send, ArrowDown, Info, Clock, Check, CheckCheck, AlertCircle, Loader2, FileText } from 'lucide-react';
+import { Send, ArrowDown, Info, Clock, Check, CheckCheck, AlertCircle, Loader2, FileText, ArrowLeft } from 'lucide-react';
 import TemplateSender from './TemplateSender';
 
 export default function DashChatWindow() {
@@ -14,6 +14,7 @@ export default function DashChatWindow() {
     activeConversationId,
     loadingMessages,
     sendMessage,
+    setActiveConversation,
   } = useDashStore();
 
   const [inputText, setInputText] = useState('');
@@ -113,7 +114,13 @@ export default function DashChatWindow() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="h-[60px] bg-[#202c33] px-4 flex items-center gap-3 shrink-0 border-b border-[#2a3942]/30">
+      <div className="h-[60px] bg-[#202c33] px-2 md:px-4 flex items-center gap-2 md:gap-3 shrink-0 border-b border-[#2a3942]/30">
+        <button
+          onClick={() => setActiveConversation(null)}
+          className="p-2 -ml-1 md:hidden text-[#8696a0] hover:text-[#e9edef] rounded-full transition-colors active:bg-[#2a3942]"
+        >
+          <ArrowLeft size={20} />
+        </button>
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[15px] font-semibold shrink-0"
           style={{ backgroundColor: generateAvatarColor(contactName) }}
