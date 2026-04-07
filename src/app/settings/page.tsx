@@ -38,7 +38,13 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
 
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/api/webhook/${userId}`;
+  const [webhookUrl, setWebhookUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && userId) {
+      setWebhookUrl(`${window.location.origin}/api/webhook/${userId}`);
+    }
+  }, [userId]);
 
   useEffect(() => {
     const load = async () => {

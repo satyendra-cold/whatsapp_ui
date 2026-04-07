@@ -34,7 +34,13 @@ export default function OnboardingPage() {
   const [copied, setCopied] = useState(false);
   const [existingConfig, setExistingConfig] = useState(false);
 
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/api/webhook/${userId}`;
+  const [webhookUrl, setWebhookUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && userId) {
+      setWebhookUrl(`${window.location.origin}/api/webhook/${userId}`);
+    }
+  }, [userId]);
 
   useEffect(() => {
     const getUser = async () => {
