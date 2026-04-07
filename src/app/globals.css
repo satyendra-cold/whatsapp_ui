@@ -1,26 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* ====================== */
+/*   WHATSAPP DARK THEME  */
+/* ====================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* WhatsApp Exact Dark Colors (Flat) */
+  --bg-primary: #161717;      /* App/Sidebar Background */
+  --bg-secondary: #202c33;    /* Header/LeftNav Background */
+  --bg-chat: #161717;         /* Chat Area Background */
+  --bg-input: #2a3942;        /* Input/Search Background */
+  --bg-hover: #222d34;        /* Hover States */
+  --bg-active: #2a3942;       /* Active/Selected States */
+  
+  --bg-bubble-sent: #005c4b;
+  --bg-bubble-received: #202c33;
+  --chat-bg-color: #161717;   /* Alias for --bg-chat */
+  
+  --text-primary: #e9edef;
+  --text-secondary: #8696a0;
+  --wa-green: #00a884;
+  --wa-blue: #3FB9ED;        /* Official Blue for Ticks */
+  
+  --border-sidebar: #2a3942;
+  --header-height: 60px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base Override for WhatsApp look */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  background-color: var(--bg-primary);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Segoe UI, Helvetica Neue, Helvetica, Lucida Grande, Arial, Ubuntu, Cantarell, Fira Sans, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ====================== */
+/*   SCROLLBAR STYLING    */
+/* ====================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(134, 150, 160, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 150, 160, 0.4);
+}
+
+/* ====================== */
+/*   WHATSAPP SPECIALS    */
+/* ====================== */
+
+.chat-bg {
+  background-color: var(--bg-chat);
+  position: relative;
+  z-index: 0;
+}
+
+.chat-bg::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("/backgroundImage.webp");
+  background-repeat: repeat;
+  background-size: 412px;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Read receipts double-tick */
+.tick-read {
+  color: #53BDEB;
+}
+
+.tick-delivered {
+  color: var(--text-muted);
+}
+
+.truncate-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Animation for smooth UI */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus styles for inputs to match WhatsApp */
+input:focus {
+  outline: none;
 }

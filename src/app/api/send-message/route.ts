@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    // Get current authenticated user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { to, message, conversationId } = await request.json();
+    if (!to || !message) {
+      return NextResponse.json(
+        { error: 'Missing "to" or "message" field' },
+        { status: 400 }
+      );
+    }
+
+    const { data: config } = await supabase
+      .from('whatsapp_configs')
+      .select('access_token, phone_number_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!config) {
+      return NextResponse.json(
+        { error: 'WhatsApp credentials are not configured.' },
+        { status: 400 }
+      );
+    }
+
+    const accessToken = config.access_token;
+    const phoneNumberId = config.phone_number_id;
+
+    // Send via Meta API
+    const { messageId: waMessageId } = await sendWhatsAppMessage({
+      to,
+      message,
+      accessToken,
+      phoneNumberId,
+    });
+
+    // Save outbound message to Supabase
+    const { data: savedMsg, error: msgError } = await supabase
+      .from('messages')
+      .insert({
+        user_id: user.id,
+        conversation_id: conversationId,
+        wa_message_id: waMessageId,
+        direction: 'outbound',
+        content: message,
+        message_type: 'text',
+        status: 'sent',
+      })
+      .select('id')
+      .single();
+
+    if (msgError) {
+      console.error('Failed to save message:', msgError);
+    }
+
+    // Update conversation
+    if (conversationId) {
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: message,
+          last_message_at: new Date().toISOString(),
+        })
+        .eq('id', conversationId)
+        .eq('user_id', user.id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      messageId: savedMsg?.id,
+      waMessageId,
+    });
+  } catch (err: any) {
+    console.error('Send message error:', err);
+    return NextResponse.json(
+      { error: err?.response?.data?.error?.message || err.message || 'Failed to send message' },
+      { status: 500 }
+    );
+  }
+}
